@@ -113,6 +113,9 @@ def setup(hass, config):
     if CONF_SSL in conf:
         kwargs['ssl'] = conf[CONF_SSL]
 
+    if CONF_RETRY_COUNT in conf:
+        kwargs['retries'] = conf[CONF_RETRY_COUNT]
+
     include = conf.get(CONF_INCLUDE, {})
     exclude = conf.get(CONF_EXCLUDE, {})
     whitelist_e = set(include.get(CONF_ENTITIES, []))
