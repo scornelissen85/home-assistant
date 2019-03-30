@@ -113,9 +113,6 @@ def setup(hass, config):
     if CONF_SSL in conf:
         kwargs['ssl'] = conf[CONF_SSL]
 
-    if CONF_RETRY_COUNT in conf:
-        kwargs['retries'] = conf[CONF_RETRY_COUNT]
-
     include = conf.get(CONF_INCLUDE, {})
     exclude = conf.get(CONF_EXCLUDE, {})
     whitelist_e = set(include.get(CONF_ENTITIES, []))
@@ -132,11 +129,10 @@ def setup(hass, config):
         conf[CONF_COMPONENT_CONFIG_GLOB])
     max_tries = conf.get(CONF_RETRY_COUNT)
 
-    try:
-        influx = InfluxDBClient(**kwargs)
-        influx.write_points([])
-    except (exceptions.InfluxDBClientError,
-            requests.exceptions.ConnectionError) as exc:
+    influx = InfluxDBClient(**kwargs)
+    instance_influx = InfluxThread(hass, influx, None, max_tries)
+    success, exc = instance_influx.write_to_influxdb([])
+    if not success:
         _LOGGER.error("Database host is not accessible due to '%s', please "
                       "check your entries in the configuration file (host, "
                       "port, etc.) and verify that the database exists and is "
@@ -320,13 +316,15 @@ class InfluxThread(threading.Thread):
 
                 _LOGGER.debug("Wrote %d events", len(json))
                 break
-            except (exceptions.InfluxDBClientError, IOError):
+            except (exceptions.InfluxDBClientError, IOError) as exc:
                 if retry < self.max_tries:
                     time.sleep(RETRY_DELAY)
                 else:
                     if not self.write_errors:
                         _LOGGER.exception("Write error")
                     self.write_errors += len(json)
+                    return False, exc
+        return True, None
 
     def run(self):
         """Process incoming events."""
