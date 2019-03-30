@@ -6,6 +6,7 @@ import threading
 import time
 import math
 
+import requests.exceptions
 import voluptuous as vol
 
 from homeassistant.const import (
@@ -87,7 +88,7 @@ RE_DECIMAL = re.compile(r'[^\d.]+')
 
 def setup(hass, config):
     """Set up the InfluxDB component."""
-    from influxdb import InfluxDBClient
+    from influxdb import InfluxDBClient, exceptions
 
     conf = config[DOMAIN]
 
@@ -129,14 +130,22 @@ def setup(hass, config):
     max_tries = conf.get(CONF_RETRY_COUNT)
 
     influx = InfluxDBClient(**kwargs)
-    instance_influx = InfluxThread(hass, influx, None, max_tries)
-    success, exc = instance_influx.write_to_influxdb([])
-    if not success:
-        _LOGGER.error("Database host is not accessible due to '%s', please "
-                      "check your entries in the configuration file (host, "
-                      "port, etc.) and verify that the database exists and is "
-                      "READ/WRITE", exc)
-        return False
+    for retry in range(max_tries+1):
+        try:
+            influx.write_points([])
+            break
+        except (exceptions.InfluxDBClientError, IOError,
+                requests.exceptions.ConnectionError) as exc:
+            if retry < max_tries:
+                time.sleep(RETRY_DELAY)
+            else:
+                _LOGGER.error(
+                    "Database host is not accessible due to '%s', please "
+                    "check your entries in the configuration file (host, "
+                    "port, etc.) and verify that the database exists and is "
+                    "READ/WRITE", exc
+                )
+                return False
 
     def event_to_json(event):
         """Add an event to the outgoing Influx list."""
@@ -315,15 +324,13 @@ class InfluxThread(threading.Thread):
 
                 _LOGGER.debug("Wrote %d events", len(json))
                 break
-            except (exceptions.InfluxDBClientError, IOError) as exc:
+            except (exceptions.InfluxDBClientError, IOError):
                 if retry < self.max_tries:
                     time.sleep(RETRY_DELAY)
                 else:
                     if not self.write_errors:
                         _LOGGER.exception("Write error")
                     self.write_errors += len(json)
-                    return False, exc
-        return True, None
 
     def run(self):
         """Process incoming events."""
