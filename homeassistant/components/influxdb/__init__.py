@@ -6,7 +6,6 @@ import threading
 import time
 import math
 
-import requests.exceptions
 import voluptuous as vol
 
 from homeassistant.const import (
@@ -88,7 +87,7 @@ RE_DECIMAL = re.compile(r'[^\d.]+')
 
 def setup(hass, config):
     """Set up the InfluxDB component."""
-    from influxdb import InfluxDBClient, exceptions
+    from influxdb import InfluxDBClient
 
     conf = config[DOMAIN]
 
