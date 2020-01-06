@@ -20,15 +20,14 @@ from .const import (
     DATA as FOSCAM_DATA,
     DOMAIN as FOSCAM_DOMAIN,
     ENTITIES as FOSCAM_ENTITIES,
+    CONF_IP,
+    DEFAULT_NAME,
+    DEFAULT_PORT
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-CONF_IP = "ip"
 CONF_RTSP_PORT = "rtsp_port"
-
-DEFAULT_NAME = "Foscam Camera"
-DEFAULT_PORT = 88
 
 SERVICE_PTZ = "ptz"
 ATTR_MOVEMENT = "movement"
